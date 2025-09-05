@@ -59,7 +59,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 # Initialize FastMCP server
 mcp = FastMCP(
     os.getenv("SERVER_NAME", "Splunk MCP"),
-    description=os.getenv("SERVER_DESCRIPTION", "MCP server for retrieving data from Splunk"),
     lifespan=app_lifespan,
     host=os.getenv("HOST", "0.0.0.0"),
     port=int(os.getenv("PORT", "8050"))
