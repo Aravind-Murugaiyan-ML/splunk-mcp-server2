@@ -225,6 +225,52 @@ delete-firewall-rule: ## Delete a ufw rule by index
 		exit 1; \
 	fi
 
+run-mcp-server: check-mcp-server-port allow-specified-ip-on-mcp-port-fw ## Run the MCP server (ensure port 8008 is free and firewall rule exists)
+	@echo "Starting MCP server on port 8008..."
+	@if [ ! -f $(PROJECT_DIR)/server.py ]; then \
+		echo "❌ server.py not found in $(PROJECT_DIR)"; \
+		exit 1; \
+	fi
+	@echo "Make sure to stop the server with Ctrl+C when done."
+	@echo "You can also run the server in the background using 'nohup' or 'screen'."
+	@echo "Example with nohup: nohup $(PYTHON) server.py sse --host 0.0.0.0 --port 8008 &"
+	@echo "Example with screen: screen -S mcp_server -dm $(PYTHON) server.py sse --host 0.0.0.0 --port 8008"
+
+copy-scripts-to-bin: ## Copy scripts to /usr/local/bin for easy access
+	@echo "Copying scripts to /usr/local/bin..."
+	@if [ ! -d $(PROJECT_DIR)/scripts ]; then \
+		echo "❌ scripts directory not found in $(PROJECT_DIR)"; \
+		exit 1; \
+	fi
+	@for script in $(PROJECT_DIR)/scripts/mcp_*; do \
+		if [ -f "$$script" ]; then \
+			sudo cp "$$script" $(SPLUNK_HOME)/bin; \
+			sudo chmod +x $(SPLUNK_HOME)/bin/$$(basename "$$script"); \
+			sudo chown splunk:splunk $(SPLUNK_HOME)/bin/$$(basename "$$script"); \
+			echo "✅ Copied and made executable: $$(basename "$$script")"; \
+		fi; \
+	done
+	@echo "✅ All scripts copied to $(SPLUNK_HOME)/bin"
+
+test-scripts-from-bin: ## Test running scripts $(SPLUNK_HOME)/bin
+	@echo "Testing scripts from $(SPLUNK_HOME)/bin..."
+	@if [ ! -d $(PROJECT_DIR)/scripts ]; then \
+		echo "❌ scripts directory not found in $(PROJECT_DIR)"; \
+		exit 1; \
+	fi
+	@for script in $(SPLUNK_HOME)/bin/mcp_*; do \
+		if [ -f "$$script" ]; then \
+			script_name=$$(basename "$$script"); \
+			if command -v "$$script_name" >/dev/null 2>&1; then \
+				echo "Running $$script_name..."; \
+				"$$script_name" --help || echo "⚠️ Failed to run $$script_name"; \
+			else \
+				echo "❌ $$script_name not found in /usr/local/bin"; \
+			fi; \
+		fi; \
+	done
+	@echo "✅ Script tests completed"
+
 help: ## Display help information
 	@echo "Python Environment Setup for Splunk MCP Server"
 	@echo "======================================="

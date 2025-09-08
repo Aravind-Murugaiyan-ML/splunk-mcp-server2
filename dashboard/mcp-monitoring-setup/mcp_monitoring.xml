@@ -1,0 +1,254 @@
+<!-- MCP Monitoring Dashboard XML -->
+<!-- Save this as: $SPLUNK_HOME/etc/apps/search/local/data/ui/views/mcp_monitoring.xml -->
+
+<dashboard version="1.1">
+  <label>MCP Monitoring Dashboard</label>
+  <description>Comprehensive monitoring for Model Context Protocol Server</description>
+  
+  <!-- Row 1: Health Status Overview -->
+  <row>
+    <panel>
+      <title>🚦 MCP Health Status</title>
+      <single>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:health 
+            | head 1 
+            | eval status=if(api_status="UP", "✅ Healthy", "❌ Unhealthy")
+            | table status
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,30,70,100]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    
+    <panel>
+      <title>🔄 Process Count</title>
+      <single>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:health 
+            | head 1 
+            | table mcp_processes
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0xD93F3C","0xF7BC38","0x65A637"]</option>
+        <option name="rangeValues">[0,1]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    
+    <panel>
+      <title>⏱️ API Response Time</title>
+      <single>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | head 1 
+            | spath mcp_health.response_time 
+            | eval response_time_ms=round('mcp_health.response_time'*1000,2)
+            | table response_time_ms
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="unit">ms</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,1000,3000,5000]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+
+  <!-- Row 2: System Resource Usage -->
+  <row>
+    <panel>
+      <title>💻 System CPU Usage (Last Hour)</title>
+      <chart>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | spath system.cpu_percent 
+            | timechart avg(system.cpu_percent) as "CPU %" span=5m
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>🧠 System Memory Usage (Last Hour)</title>
+      <chart>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | spath system.memory.percent 
+            | timechart avg(system.memory.percent) as "Memory %" span=5m
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Row 3: MCP Specific Metrics -->
+  <row>
+    <panel>
+      <title>🔧 MCP Process CPU Usage</title>
+      <chart>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | spath mcp_processes.total_cpu_percent 
+            | timechart avg(mcp_processes.total_cpu_percent) as "MCP CPU %" span=5m
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>🏥 MCP Health Check Response Times</title>
+      <chart>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | spath mcp_health.response_time 
+            | eval response_time_ms='mcp_health.response_time'*1000
+            | timechart avg(response_time_ms) as "Response Time (ms)" span=5m
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Row 4: Error Tracking and Logs -->
+  <row>
+    <panel>
+      <title>❌ Recent Errors and Issues</title>
+      <table>
+        <search>
+          <query>
+            index=mcp (sourcetype=mcp:health api_status=DOWN) OR (sourcetype=mcp:metrics error) OR (sourcetype=mcp:application ERROR)
+            | head 20
+            | table _time, sourcetype, host, api_status, error, _raw
+            | sort -_time
+          </query>
+          <earliest>-4h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="rowNumbers">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+
+  <!-- Row 5: Historical Performance -->
+  <row>
+    <panel>
+      <title>📊 24-Hour Performance Summary</title>
+      <table>
+        <search>
+          <query>
+            index=mcp sourcetype=mcp:metrics 
+            | spath system.cpu_percent, system.memory.percent, mcp_health.is_healthy, mcp_processes.process_count
+            | bin _time span=1h
+            | stats 
+                avg(system.cpu_percent) as avg_cpu,
+                avg(system.memory.percent) as avg_memory,
+                avg(mcp_processes.process_count) as avg_processes,
+                count(eval('mcp_health.is_healthy'=true)) as healthy_checks,
+                count as total_checks
+            by _time
+            | eval 
+                avg_cpu=round(avg_cpu,1),
+                avg_memory=round(avg_memory,1),
+                avg_processes=round(avg_processes,1),
+                health_percentage=round((healthy_checks/total_checks)*100,1)
+            | sort -_time
+            | rename 
+                _time as "Hour",
+                avg_cpu as "Avg CPU %",
+                avg_memory as "Avg Memory %", 
+                avg_processes as "Avg Processes",
+                health_percentage as "Health %"
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">false</option>
+      </table>
+    </panel>
+  </row>
+
+  <!-- Row 6: Alert Status -->
+  <row>
+    <panel>
+      <title>🚨 Active Alerts Status</title>
+      <table>
+        <search>
+          <query>
+            | rest /services/saved/searches 
+            | search title="MCP*" OR title="High*Usage" 
+            | eval alert_status=if(disabled=0, "🟢 Active", "🔴 Disabled")
+            | table title, alert_status, cron_schedule, actions
+            | rename title as "Alert Name", alert_status as "Status", cron_schedule as "Schedule"
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">false</option>
+      </table>
+    </panel>
+  </row>
+
+</dashboard>

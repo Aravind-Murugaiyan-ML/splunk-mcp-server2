@@ -1,0 +1,267 @@
+<!-- $SPLUNK_HOME/etc/apps/search/local/data/ui/views/infrastructure_monitoring.xml -->
+<dashboard version="1.1">
+  <label>🖥️ Infrastructure Monitoring</label>
+  <description>System performance monitoring for Splunk server on vSphere</description>
+
+  <!-- Row 1: System Overview -->
+  <row>
+    <panel>
+      <title>💻 System Status Overview</title>
+      <single>
+        <search>
+          <query>
+            index=performance sourcetype=cpu
+            | head 1
+            | eval cpu_status=case(
+                CPU_pctUser+CPU_pctSystem > 80, "🔴 High Load",
+                CPU_pctUser+CPU_pctSystem > 60, "🟡 Moderate Load",
+                1=1, "🟢 Normal"
+              )
+            | table cpu_status
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+      </single>
+    </panel>
+
+    <panel>
+      <title>🧠 Memory Usage</title>
+      <single>
+        <search>
+          <query>
+            index=performance sourcetype=vmstat
+            | head 1
+            | eval memory_free_mb=round(memFreeMB,0), memory_used_pct=round(((memTotalMB-memFreeMB)/memTotalMB)*100,1)
+            | table memory_used_pct
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="unit">%</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,70,85,100]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+
+    <panel>
+      <title>💾 Disk Usage</title>
+      <single>
+        <search>
+          <query>
+            index=performance sourcetype=df Mount="/"
+            | head 1
+            | eval disk_used_pct=round(((1-(AvailMB/(UsedMB+AvailMB)))*100),1)
+            | table disk_used_pct
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>30s</refresh>
+        </search>
+        <option name="unit">%</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,70,85,100]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+
+    <panel>
+      <title>⏰ System Uptime</title>
+      <single>
+        <search>
+          <query>
+            index=infrastructure sourcetype=uptime
+            | head 1
+            | eval uptime_display="System Running"
+            | table uptime_display
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+  </row>
+
+  <!-- Row 2: CPU and Memory Trends -->
+  <row>
+    <panel>
+      <title>📈 CPU Usage Trend (Last 4 Hours)</title>
+      <chart>
+        <search>
+          <query>
+            index=performance sourcetype=cpu
+            | eval total_cpu=CPU_pctUser+CPU_pctSystem+CPU_pctNice+CPU_pctIowait
+            | timechart avg(total_cpu) as "CPU Usage %" span=5m
+          </query>
+          <earliest>-4h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.lineWidth">2</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>📊 Memory Usage Trend (Last 4 Hours)</title>
+      <chart>
+        <search>
+          <query>
+            index=performance sourcetype=vmstat
+            | eval memory_used_pct=((memTotalMB-memFreeMB)/memTotalMB)*100
+            | timechart avg(memory_used_pct) as "Memory Usage %" span=5m
+          </query>
+          <earliest>-4h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Row 3: Disk and Network Activity -->
+  <row>
+    <panel>
+      <title>💿 Disk I/O Activity</title>
+      <chart>
+        <search>
+          <query>
+            index=performance sourcetype=iostat
+            | timechart avg(reads_per_sec) as "Reads/sec", avg(writes_per_sec) as "Writes/sec" span=5m
+          </query>
+          <earliest>-2h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>🌐 Network Activity</title>
+      <chart>
+        <search>
+          <query>
+            index=performance sourcetype=netstat
+            | timechart avg(kilobytes_received) as "KB Received", avg(kilobytes_transmitted) as "KB Transmitted" span=5m
+          </query>
+          <earliest>-2h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Row 4: System Processes and Load -->
+  <row>
+    <panel>
+      <title>⚡ System Load Average</title>
+      <chart>
+        <search>
+          <query>
+            index=performance sourcetype=vmstat
+            | timechart avg(loadAvg1min) as "1 Min", avg(loadAvg5min) as "5 Min", avg(loadAvg15min) as "15 Min" span=5m
+          </query>
+          <earliest>-2h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>🔝 Top Processes by CPU</title>
+      <table>
+        <search>
+          <query>
+            index=performance sourcetype=top
+            | head 100
+            | sort - pctCPU
+            | head 10
+            | table COMMAND, pctCPU, pctMEM, USER
+            | rename COMMAND as "Process", pctCPU as "CPU %", pctMEM as "Memory %", USER as "User"
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">true</option>
+      </table>
+    </panel>
+  </row>
+
+  <!-- Row 5: Splunk Performance -->
+  <row>
+    <panel>
+      <title>🔍 Splunk Performance Metrics</title>
+      <table>
+        <search>
+          <query>
+            index=performance sourcetype=splunkd_metrics
+            | rex field=_raw "(?&lt;metric&gt;\w+)=(?&lt;value&gt;[\d\.]+)"
+            | stats latest(value) as current_value by metric
+            | where metric IN ("indexing_rate", "search_concurrency", "disk_usage")
+            | eval current_value=round(current_value,2)
+            | table metric, current_value
+            | rename metric as "Metric", current_value as "Current Value"
+          </query>
+          <earliest>-5m</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+
+    <panel>
+      <title>📝 Recent System Events</title>
+      <table>
+        <search>
+          <query>
+            index=infrastructure (ERROR OR error OR failed OR Failed OR warning OR Warning)
+            | head 10
+            | table _time, host, source, _raw
+            | sort -_time
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+          <refresh>2m</refresh>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="rowNumbers">true</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</dashboard>
